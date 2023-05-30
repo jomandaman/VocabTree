@@ -88,28 +88,25 @@ public:
             orb->detectAndCompute(gray2, noArray(), kp2, des2);
         }
 
-        vector<pair<Mat, Mat>> result;
-        for (int i = 0; i < des1.rows; i++) {
-            Mat distance;
-            reduce(abs(des2 - des1.row(i)), distance, 1, REDUCE_SUM);
-            Mat sortedDist;
-            sortIdx(distance, sortedDist, SORT_ASCENDING);
+        // Create a matcher
+        BFMatcher matcher(NORM_L2, true);
+        vector<DMatch> matches;
+        matcher.match(des1, des2, matches);
 
-            int smallestIdx = sortedDist.at<int>(0);
-            int secondSmallestIdx = sortedDist.at<int>(1);
-            float smallestDistance = distance.at<float>(smallestIdx);
-            float secondSmallestDistance = distance.at<float>(secondSmallestIdx);
-            float ratio = smallestDistance / secondSmallestDistance;
+        vector<pair<Mat, Mat>> correspondences;
+        for (int i = 0; i < matches.size(); i++) {
+            Point2f pt1 = kp1[matches[i].queryIdx].pt;
+            Point2f pt2 = kp2[matches[i].trainIdx].pt;
 
-            if (ratio < 0.8) {
-                Mat pt1 = (Mat_<double>(3,1) << kp1[i].pt.x, kp1[i].pt.y, 1); // create 3x1 homogeneous coordinate matrix
-                Mat pt2 = (Mat_<double>(3,1) << kp2[smallestIdx].pt.x, kp2[smallestIdx].pt.y, 1); 
-                result.push_back(make_pair(pt1, pt2));
-            }
+            Mat pt1_homogeneous = (Mat_<double>(1, 3) << pt1.x, pt1.y, 1);
+            Mat pt2_homogeneous = (Mat_<double>(1, 3) << pt2.x, pt2.y, 1);
+
+            correspondences.push_back(make_pair(pt1_homogeneous, pt2_homogeneous));
         }
 
-        return result;
+        return correspondences;
     }
+
 
     void drawCircle(Mat& image, vector<KeyPoint>& kp) {
         int H = image.rows;
@@ -122,80 +119,80 @@ public:
     }
 };
 
-    vector<tuple<Point2f, Point2f, float>> filterMatchPoints(vector<KeyPoint>& kp1, vector<KeyPoint>& kp2,
-        Mat& des1, Mat& des2) {
+    // vector<tuple<Point2f, Point2f, float>> filterMatchPoints(vector<KeyPoint>& kp1, vector<KeyPoint>& kp2,
+    //     Mat& des1, Mat& des2) {
 
-        vector<tuple<Point2f, Point2f, float>> result;
+    //     vector<tuple<Point2f, Point2f, float>> result;
 
-        for (int i = 0; i < des1.rows; i++) {
-            float smallestDistance = numeric_limits<float>::max();
-            float secondSmallestDistance = numeric_limits<float>::max();
-            int smallestIdx = 0;
+    //     for (int i = 0; i < des1.rows; i++) {
+    //         float smallestDistance = numeric_limits<float>::max();
+    //         float secondSmallestDistance = numeric_limits<float>::max();
+    //         int smallestIdx = 0;
 
-            for (int j = 0; j < des2.rows; j++) {
-                float distance = norm(des1.row(i), des2.row(j), NORM_L2);
+    //         for (int j = 0; j < des2.rows; j++) {
+    //             float distance = norm(des1.row(i), des2.row(j), NORM_L2);
 
-                if (distance < smallestDistance) {
-                    secondSmallestDistance = smallestDistance;
-                    smallestDistance = distance;
-                    smallestIdx = j;
-                }
-            }
+    //             if (distance < smallestDistance) {
+    //                 secondSmallestDistance = smallestDistance;
+    //                 smallestDistance = distance;
+    //                 smallestIdx = j;
+    //             }
+    //         }
 
-            float ratio = smallestDistance / secondSmallestDistance;
+    //         float ratio = smallestDistance / secondSmallestDistance;
 
-            if (ratio < 0.8) {
-                Point2f pt1 = kp1[i].pt;
-                Point2f pt2 = kp2[smallestIdx].pt;
-                result.push_back(std::make_tuple(pt2, pt1, ratio));
-            }
-        }
+    //         if (ratio < 0.8) {
+    //             Point2f pt1 = kp1[i].pt;
+    //             Point2f pt2 = kp2[smallestIdx].pt;
+    //             result.push_back(std::make_tuple(pt2, pt1, ratio));
+    //         }
+    //     }
 
-        return result;
-    }
+    //     return result;
+    // }
 
-    vector<tuple<Point2f, Point2f, float>> SIFTMatchPoints(Mat& img1, Mat& img2) {
-        Mat gray1, gray2;
-        cvtColor(img1, gray1, COLOR_BGR2GRAY);
-        cvtColor(img2, gray2, COLOR_BGR2GRAY);
-        Ptr<cv::SIFT> sift = SIFT::create();
+    // vector<tuple<Point2f, Point2f, float>> SIFTMatchPoints(Mat& img1, Mat& img2) {
+    //     Mat gray1, gray2;
+    //     cvtColor(img1, gray1, COLOR_BGR2GRAY);
+    //     cvtColor(img2, gray2, COLOR_BGR2GRAY);
+    //     Ptr<cv::SIFT> sift = SIFT::create();
 
-        vector<KeyPoint> kp1, kp2;
-        Mat des1, des2;
+    //     vector<KeyPoint> kp1, kp2;
+    //     Mat des1, des2;
 
-        sift->detectAndCompute(gray1, noArray(), kp1, des1);
-        sift->detectAndCompute(gray2, noArray(), kp2, des2);
+    //     sift->detectAndCompute(gray1, noArray(), kp1, des1);
+    //     sift->detectAndCompute(gray2, noArray(), kp2, des2);
 
-        return filterMatchPoints(kp1, kp2, des1, des2);
-    }
+    //     return filterMatchPoints(kp1, kp2, des1, des2);
+    // }
 
-    vector<KeyPoint> SIFTMatchPointsSingle(Mat& img1) {
-        Mat gray1;
-        cvtColor(img1, gray1,COLOR_BGR2GRAY);
-        Ptr<SIFT> sift = SIFT::create();
+    // vector<KeyPoint> SIFTMatchPointsSingle(Mat& img1) {
+    //     Mat gray1;
+    //     cvtColor(img1, gray1,COLOR_BGR2GRAY);
+    //     Ptr<SIFT> sift = SIFT::create();
 
-        vector<KeyPoint> kp1;
-        Mat des1;
+    //     vector<KeyPoint> kp1;
+    //     Mat des1;
 
-        sift->detectAndCompute(gray1, noArray(), kp1, des1);
+    //     sift->detectAndCompute(gray1, noArray(), kp1, des1);
 
-        return kp1;
-    }
+    //     return kp1;
+    // }
 
-    Mat draw_circle(Mat& image, vector<KeyPoint>& kp) {
-        int H = image.rows;
-        int W = image.cols;
+    // Mat draw_circle(Mat& image, vector<KeyPoint>& kp) {
+    //     int H = image.rows;
+    //     int W = image.cols;
 
-        Mat result = image.clone();
+    //     Mat result = image.clone();
 
-        for (int i = 0; i < kp.size(); i++) {
-            Point2f pt = kp[i].pt;
-            circle(result, Point(static_cast<int>(pt.x), static_cast<int>(pt.y)),
-                static_cast<int>(kp[i].size), Scalar(0, 255, 0), 1);
-        }
+    //     for (int i = 0; i < kp.size(); i++) {
+    //         Point2f pt = kp[i].pt;
+    //         circle(result, Point(static_cast<int>(pt.x), static_cast<int>(pt.y)),
+    //             static_cast<int>(kp[i].size), Scalar(0, 255, 0), 1);
+    //     }
 
-        return result;
-    }
+    //     return result;
+    // }
 
 // Homograhy.cpp
     Mat homography(vector<pair<Mat, Mat>> correspondences) {
