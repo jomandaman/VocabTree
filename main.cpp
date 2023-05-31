@@ -238,15 +238,13 @@ public:
     // Output: a 3x3 homography matrix
     // Return a tuple of int and cv::Mat
     tuple<int, Mat> RANSAC_find_optimal_Homography(vector<pair<Mat, Mat>> correspondences, int num_rounds = -1)
-    {
+{
         Mat optimal_H;
         int optimal_inliers = 0;
         num_rounds = num_rounds > 0 ? num_rounds : num_round_needed(0.15, 4, 0.95);
         for (int i = 0; i < num_rounds; i++)
         {
             // Random sample 4 keypoint pairs
-            //vector<pair<Mat, Mat>> sample_corr;
-            //sample(correspondences.begin(), correspondences.end(), back_inserter(sample_corr), 4, mt19937{ random_device{}() });
             vector<pair<Mat, Mat>> copy = correspondences;
 
             // shuffle the copy using a random number generator
@@ -254,6 +252,7 @@ public:
             mt19937 g(rd());
             shuffle(copy.begin(), copy.end(),g);
             vector<pair<Mat, Mat>> sample_corr(copy.begin(), copy.begin() + 4);
+            
             // Compute the homography
             Mat H = homography(sample_corr);
             int num_inliers = 0;
@@ -261,12 +260,18 @@ public:
             {
                 Mat pt1 = pair.first;
                 Mat pt2 = pair.second;
+                
                 // Project pt1 using H
                 Mat pt1_homogeneous = (Mat_<double>(3,1) << pt1.at<double>(0, 0), pt1.at<double>(0, 1), 1);
                 Mat projected_pt1 = H * pt1_homogeneous;
                 projected_pt1 /= projected_pt1.at<double>(2, 0);
-                pt2 /= pt2.at<double>(2, 0);
-                double loss = cv::norm(pt2 - projected_pt1);
+                
+                // Normalize pt2
+                pt2 /= pt2.at<double>(0, 2);
+                
+                // Compute the loss
+                double loss = cv::norm(pt2 - projected_pt1.t());  // transpose projected_pt1 to match the layout of pt2
+                
                 if (loss <= 20)
                 {
                     num_inliers++;
@@ -280,6 +285,7 @@ public:
         }
         return make_tuple(optimal_inliers, optimal_H);
     }
+
 
     Mat visualize_homography(Mat img1, Mat img2, Mat H) {
         int h, w;
@@ -756,8 +762,17 @@ public:
         vector<cv::String> best_K;
         tie(best_img, best_img_path, best_H, best_K) = db.query(test, 1, "SIFT");
 
+        // Assuming best_img is the best matching image
+        Mat top_choice = imread(best_img_path, IMREAD_COLOR);
+
+        // Display the test image
         namedWindow("Test Image", WINDOW_NORMAL);
         imshow("Test Image", test);
+
+        // Display the best matching image
+        namedWindow("Best Match", WINDOW_NORMAL);
+        imshow("Best Match", top_choice);
+
         waitKey(0);
         
         return 0;
