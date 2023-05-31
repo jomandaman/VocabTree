@@ -560,7 +560,7 @@ public:
             Mat des;
 
             // compute the features
-            tie(kpts, des) = fd.detect(input_img, method); // TODO: replace with actual C++ version when available
+            tie(kpts, des) = fd.detect(input_img, method); 
 
             vector<float> q(word_idx_count, 0.0);
             vector<VocabNode*> node_lst;
@@ -701,17 +701,21 @@ public:
 
         // Build database
         cout << "Building the database...\n";
-        db.buildDatabase(cover_path, 5, 5, "ORB", "data_sift.txt");
+        db.buildDatabase(cover_path, 5, 5, "SIFT", "data_sift.txt");
 
         // Load the database
         cout << "Loading the database...\n";
         db.load("data_sift.txt");
 
         // Query an image
-        string img_path = test_path + "/image_01.jpg";
+        string img_path = test_path + "/iRobot.jpg";
          
         Mat test = imread(img_path);
-        //auto [best_img, best_img_path, best_H, best_K] = db.query(test, 10, "SIFT");
+        Mat best_img;
+        string best_img_path;
+        Mat best_H;
+        vector<cv::String> best_K;
+        tie(best_img, best_img_path, best_H, best_K) = db.query(test, 10, "SIFT");
 
         namedWindow("Test Image", WINDOW_NORMAL);
         imshow("Test Image", test);
