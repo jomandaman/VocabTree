@@ -262,8 +262,10 @@ public:
                 Mat pt1 = pair.first;
                 Mat pt2 = pair.second;
                 // Project pt1 using H
-                Mat projected_pt1 = H * pt1;
+                Mat pt1_homogeneous = (Mat_<double>(3,1) << pt1.at<double>(0, 0), pt1.at<double>(0, 1), 1);
+                Mat projected_pt1 = H * pt1_homogeneous;
                 projected_pt1 /= projected_pt1.at<double>(2, 0);
+                pt2 /= pt2.at<double>(2, 0);
                 double loss = cv::norm(pt2 - projected_pt1);
                 if (loss <= 20)
                 {
@@ -327,16 +329,15 @@ public:
     class Database {
 
     private:
-        vector<Mat> images;  // to be defined
         string data_path;
         // map<string, pair<Mat, vector<KeyPoint>>> img_to_des_and_kpts;  // Assuming the image filename is used as the key
         int num_imgs;
         map<int, vector<string>> word_to_img;  // Assuming the word is an integer
         map<string, vector<float>> BoW;  // Assuming each word maps to a list of floats (histogram)
         vector<int> word_count;
-        map<string, vector<float>> img_to_histogram;  // Assuming each image maps to a histogram
-        vector<pair<Mat, string>> all_des;  // Assuming descriptor matrices are stored here
-        vector<string> all_images;  // Assuming image paths are stored here
+        map<string, vector<float>> img_to_histogram;  // Maps each image to a histogram
+        vector<pair<Mat, string>> all_des;  // Descriptor matrices
+        vector<string> all_images;  // Image paths 
         vector<int> num_feature_per_image;
         vector<int> feature_start_idx;
         VocabNode* vocabulary_tree;
@@ -345,14 +346,11 @@ public:
     public:
         // Constructor
         Database() :
-            images{}, data_path{}, num_imgs{ 0 }, word_to_img{}, BoW{}, word_count{},
+            data_path{}, num_imgs{ 0 }, word_to_img{}, BoW{}, word_count{},
             img_to_histogram{}, all_des{}, all_images{}, num_feature_per_image{},
             feature_start_idx{}, vocabulary_tree{ nullptr }, word_idx_count{ 0 } {
         }
 
-
-        // uses Feature.cpp for FeatureDetector
-        // NEED TO INTEGRATE WITH OTHER CPP FILES
         void loadImgs(string data_path, string method = "SIFT") {
             this->data_path = data_path;
 
@@ -361,36 +359,43 @@ public:
 
             for (auto& p : fs::recursive_directory_iterator(data_path)) {
                 if (fs::is_regular_file(p)) {
-
                     string img_path = p.path().string();
-                    Mat img = imread(img_path);
+                    string extension = p.path().extension().string();
+                    transform(extension.begin(), extension.end(), extension.begin(), ::tolower); // Convert the extension to lower case
 
-                    // get all the keypoints and descriptors for each image
-                    vector<KeyPoint> kpts;
-                    Mat des;
-                    // ---------------------------- NEXT LINE NEEDS TO BE INTEGRATED WITH FEATURE.CPP --------------------------------
-                    tie(kpts, des) = fd.detect(img, method); // Assuming that the detect method returns keypoints and descriptors
+                    // Check if the file has an image extension
+                    if (extension == ".jpg" || extension == ".jpeg" || extension == ".png" || extension == ".bmp") {
+                        // Load the image
+                        Mat img = imread(img_path);
 
-                    // Append descriptors and image paths to all_des
-                    // Assuming that all_des is a vector of pairs
-                    for (int i = 0; i < des.rows; i++) {
-                        Mat row = des.row(i);
-                        all_des.push_back(make_pair(row, img_path));
+                        // get all the keypoints and descriptors for each image
+                        vector<KeyPoint> kpts;
+                        Mat des;
+                        tie(kpts, des) = fd.detect(img, method); 
+
+                        // Append descriptors and image paths to all_des
+                        for (int i = 0; i < des.rows; i++) {
+                            Mat row = des.row(i);
+                            all_des.push_back(make_pair(row, img_path));
+                        }
+
+                        // Append image paths to all_image
+                        all_images.push_back(img_path);
+
+                        // Compute start index
+                        int idx = 0;
+                        if (!num_feature_per_image.empty())
+                            idx = num_feature_per_image.back() + feature_start_idx.back();
+
+                        // Append descriptor count to num_feature_per_image
+                        num_feature_per_image.push_back(des.rows);
+
+                        // Append start index to feature_start_idx
+                        feature_start_idx.push_back(idx);
+
+                    } else { // Not an image file. Skip it.
+                        continue;
                     }
-
-                    // Append image paths to all_image
-                    all_images.push_back(img_path);
-
-                    // Compute start index
-                    int idx = 0;
-                    if (!num_feature_per_image.empty())
-                        idx = num_feature_per_image.back() + feature_start_idx.back();
-
-                    // Append descriptor count to num_feature_per_image
-                    num_feature_per_image.push_back(des.rows);
-
-                    // Append start index to feature_start_idx
-                    feature_start_idx.push_back(idx);
                 }
             }
 
@@ -409,7 +414,6 @@ public:
                 cerr << "Caught OpenCV exception: " << e.what() << endl;
                 cerr << "Error occurred at k = " << k << ", L = " << L << endl;
             }
-            // vocabulary_tree = hierarchical_KMeans(k, L, all_des);
         }
 
 
@@ -439,19 +443,12 @@ public:
             TermCriteria criteria = TermCriteria(TermCriteria::EPS + TermCriteria::COUNT, 10, 0.2);
             
             try {
-                cout << "Size of descriptors vector: " << descriptors.size() << endl;
-                
                 if (descriptors.rows >= k) {
                     kmeans(descriptors, k, labels, criteria, attempts, KMEANS_PP_CENTERS, centers);
-                    cout << "Cluster centers:" << endl;
-                    for (int i = 0; i < k; ++i) {
-                        cout << centers.at<float>(i, 0) << ", " << centers.at<float>(i, 1) << endl;
-                    }
                     root->labels = labels;
                     root->centers = centers;
                 } else {
                     // Adjust the number of clusters or skip the kmeans() call
-                    cout << "Skipping kmeans() because there are fewer descriptors than clusters." << endl;
                 }
             } catch (const cv::Exception& e) {
                 cerr << "Caught OpenCV exception in kmeans: " << e.what() << endl;
@@ -485,8 +482,8 @@ public:
                     VocabNode* node_i = hierarchical_KMeans(k, L - 1, cluster_i);
                     root->children.push_back(node_i);
                     } catch (const cv::Exception& e) {
-                        std::cerr << "Caught OpenCV exception in hierarchical_KMeans: " << e.what() << std::endl;
-                        std::cerr << "Error occurred at k = " << k << ", L = " << L << std::endl;
+                        cerr << "Caught OpenCV exception in hierarchical_KMeans: " << e.what() << endl;
+                        cerr << "Error occurred at k = " << k << ", L = " << L << endl;
                     }
                 }
             }
@@ -617,8 +614,10 @@ public:
             // get a list of img from database that have the same visual words
             vector<string> target_img_lst;
             for (auto n : node_lst) {
-                 if (n == nullptr) continue; // Skip virtual nodes
-                for (auto const& [img, count] : n->occurrences_in_img) {
+                if (n == nullptr) continue; // Skip virtual nodes
+                for (auto const& entry : n->occurrences_in_img) {
+                    string img = entry.first;
+                    int count = entry.second;
                     if (find(target_img_lst.begin(), target_img_lst.end(), img) == target_img_lst.end()) {
                         target_img_lst.push_back(img);
                     }
@@ -630,7 +629,8 @@ public:
             for (size_t j = 0; j < target_img_lst.size(); ++j) {
                 string img = target_img_lst[j];
                 vector<float> t = BoW[img];
-                score_lst[j] = 2 + accumulate(begin(q), end(q), 0.0f) - accumulate(begin(t), end(t), 0.0f);
+                // lower scores mean closer match between images
+                score_lst[j] = 2 + accumulate(begin(q), end(q), 0.0f) - accumulate(begin(t), end(t), 0.0f); 
             }
 
             // sort the similarity and take the top_K most similar image
@@ -641,13 +641,14 @@ public:
             sort(indices.begin(), indices.end(),
                 [&score_lst](int i1, int i2) { return score_lst[i1] < score_lst[i2]; }); // Sort indices based on corresponding scores
 
-            vector<int> best_K_match_imgs_idx(indices.end() - top_K, indices.end());
+            int actual_top_K = min(top_K, static_cast<int>(indices.size()));
+
+            vector<int> best_K_match_imgs_idx(indices.end() - actual_top_K, indices.end());
             reverse(best_K_match_imgs_idx.begin(), best_K_match_imgs_idx.end());
 
-            vector<string> best_K_match_imgs(top_K);
+            vector<string> best_K_match_imgs(actual_top_K);
             transform(best_K_match_imgs_idx.begin(), best_K_match_imgs_idx.end(), best_K_match_imgs.begin(),
                 [&target_img_lst](int i) { return target_img_lst[i]; });
-
 
             Mat best_img;
             string best_img_path;
@@ -746,13 +747,14 @@ public:
 
         // Query an image
         cout << "Querying an image\n";
-        string img_path = test_path + "/iRobot.jpg";
-        Mat test = imread(img_path);
+        // string img_path = test_path + "/iRobot.jpg";
+        string img_peth = "./data/test/iRobot.jpg";
+        Mat test = imread(img_peth);
         Mat best_img;
         string best_img_path;
         Mat best_H;
         vector<cv::String> best_K;
-        tie(best_img, best_img_path, best_H, best_K) = db.query(test, 10, "SIFT");
+        tie(best_img, best_img_path, best_H, best_K) = db.query(test, 1, "SIFT");
 
         namedWindow("Test Image", WINDOW_NORMAL);
         imshow("Test Image", test);
