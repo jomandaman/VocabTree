@@ -21,7 +21,7 @@
 
 using namespace std;
 using namespace cv;
-namespace fs = std::filesystem;
+namespace fs = std::__fs::filesystem;
 
 //feature.cpp
 class FeatureDetector1 {
@@ -436,15 +436,35 @@ public:
             VocabNode* root = new VocabNode();
             int attempts = 5;
             TermCriteria criteria = TermCriteria(TermCriteria::EPS + TermCriteria::COUNT, 10, 0.2);
-            root->labels = Mat::zeros(des.size(), 1, CV_32S);
-            root->centers = Mat::zeros(k, des[0].cols, des[0].type());
+            // root->labels = Mat::zeros(des.size(), 1, CV_32S);
+            // root->centers = Mat::zeros(k, des[0].cols, des[0].type());
+
+            Mat data(10, 2, CV_32F);
+            float data_values[10][2] = {
+                {1.0, 2.0}, {1.5, 1.5}, {2.0, 1.0}, {8.0, 9.0}, {9.0, 8.5},
+                {9.5, 9.0}, {3.0, 3.0}, {2.5, 2.5}, {3.5, 3.5}, {10.0, 10.0}
+            };
+            for (int i = 0; i < 10; ++i) {
+                for (int j = 0; j < 2; ++j) {
+                    data.at<float>(i, j) = data_values[i][j];
+                }
+            }
+            int K = 2;
+            Mat labels, centers;
+
             
             try {
                 cout << "Size of descriptors vector: " << des.size() << endl;
                 cout << "Size of labels vector before kmeans: " << root->labels.size() << endl;
                 cout << "Size of centers matrix before kmeans: " << root->centers.size() << endl;
+                
                 // cout << "Criteria: " << criteria << endl;
-                kmeans(des, k, root->labels, criteria, attempts, KMEANS_PP_CENTERS, root->centers);
+                // kmeans(des, k, root->labels, criteria, attempts, KMEANS_PP_CENTERS, root->centers);
+                kmeans(data, K, labels, TermCriteria(TermCriteria::EPS+TermCriteria::COUNT, 10, 1.0), 3, KMEANS_PP_CENTERS, centers);
+                cout << "Cluster centers:" << endl;
+                for (int i = 0; i < K; ++i) {
+                    cout << centers.at<float>(i, 0) << ", " << centers.at<float>(i, 1) << endl;
+                }
             } catch (const cv::Exception& e) {
                 cerr << "Caught OpenCV exception in kmeans: " << e.what() << endl;
                 cerr << "Error occurred at k = " << k << ", L = " << L << endl;
@@ -696,9 +716,6 @@ public:
         }
 
         void buildDatabase(string load_path, int k, int L, string method, string save_path) {
-            cout << "Initial the Database\n";
-            // Database is already initialized in constructor
-
             cout << "Loading the images from " << load_path << ", use " << method << " for features\n";
             loadImgs(load_path, method);
 
@@ -754,4 +771,5 @@ public:
         waitKey(0);
         
         return 0;
+        
     }
