@@ -428,49 +428,35 @@ public:
 
         VocabNode* hierarchical_KMeans(int k, int L, vector<pair<Mat, string>>& des_and_path) {
             // Divide the given descriptor vector into k clusters
-            vector<Mat> des;
-            for (const auto& pair : des_and_path) {
-                des.push_back(pair.first);
+            Mat descriptors;
+            for (int i = 0; i < des_and_path.size(); i++) {
+                descriptors.push_back(des_and_path[i].first);
             }
 
             VocabNode* root = new VocabNode();
+            Mat labels, centers;
             int attempts = 5;
             TermCriteria criteria = TermCriteria(TermCriteria::EPS + TermCriteria::COUNT, 10, 0.2);
-            // root->labels = Mat::zeros(des.size(), 1, CV_32S);
-            // root->centers = Mat::zeros(k, des[0].cols, des[0].type());
-
-            Mat data(10, 2, CV_32F);
-            float data_values[10][2] = {
-                {1.0, 2.0}, {1.5, 1.5}, {2.0, 1.0}, {8.0, 9.0}, {9.0, 8.5},
-                {9.5, 9.0}, {3.0, 3.0}, {2.5, 2.5}, {3.5, 3.5}, {10.0, 10.0}
-            };
-            for (int i = 0; i < 10; ++i) {
-                for (int j = 0; j < 2; ++j) {
-                    data.at<float>(i, j) = data_values[i][j];
-                }
-            }
-            int K = 2;
-            Mat labels, centers;
-
             
             try {
-                cout << "Size of descriptors vector: " << des.size() << endl;
-                cout << "Size of labels vector before kmeans: " << root->labels.size() << endl;
-                cout << "Size of centers matrix before kmeans: " << root->centers.size() << endl;
+                cout << "Size of descriptors vector: " << descriptors.size() << endl;
                 
-                // cout << "Criteria: " << criteria << endl;
-                // kmeans(des, k, root->labels, criteria, attempts, KMEANS_PP_CENTERS, root->centers);
-                kmeans(data, K, labels, TermCriteria(TermCriteria::EPS+TermCriteria::COUNT, 10, 1.0), 3, KMEANS_PP_CENTERS, centers);
-                cout << "Cluster centers:" << endl;
-                for (int i = 0; i < K; ++i) {
-                    cout << centers.at<float>(i, 0) << ", " << centers.at<float>(i, 1) << endl;
+                if (descriptors.rows >= k) {
+                    kmeans(descriptors, k, labels, criteria, attempts, KMEANS_PP_CENTERS, centers);
+                    cout << "Cluster centers:" << endl;
+                    for (int i = 0; i < k; ++i) {
+                        cout << centers.at<float>(i, 0) << ", " << centers.at<float>(i, 1) << endl;
+                    }
+                    root->labels = labels;
+                    root->centers = centers;
+                } else {
+                    // Adjust the number of clusters or skip the kmeans() call
+                    cout << "Skipping kmeans() because there are fewer descriptors than clusters." << endl;
                 }
             } catch (const cv::Exception& e) {
                 cerr << "Caught OpenCV exception in kmeans: " << e.what() << endl;
                 cerr << "Error occurred at k = " << k << ", L = " << L << endl;
             }
-
-            // kmeans(des, k, root->labels, criteria, attempts, KMEANS_PP_CENTERS, root->centers);
 
             // If we reach the leaf node
             if (L == 0) {
