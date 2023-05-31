@@ -5,7 +5,6 @@
 //
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 
-#include <opencv2/opencv.hpp>
 #include <tuple>
 #include <cmath>
 #include <vector>
@@ -404,7 +403,13 @@ public:
             int n_leafs = pow(k, L);
             word_count = vector<int>(n_leafs, 0);  // Initialize all elements to zero
 
-            vocabulary_tree = hierarchical_KMeans(k, L, all_des);
+            try {
+                vocabulary_tree = hierarchical_KMeans(k, L, all_des);
+            } catch (const cv::Exception& e) {
+                cerr << "Caught OpenCV exception: " << e.what() << endl;
+                cerr << "Error occurred at k = " << k << ", L = " << L << endl;
+            }
+            // vocabulary_tree = hierarchical_KMeans(k, L, all_des);
         }
 
 
@@ -431,7 +436,21 @@ public:
             VocabNode* root = new VocabNode();
             int attempts = 5;
             TermCriteria criteria = TermCriteria(TermCriteria::EPS + TermCriteria::COUNT, 10, 0.2);
-            kmeans(des, k, root->labels, criteria, attempts, KMEANS_PP_CENTERS, root->centers);
+            root->labels = Mat::zeros(des.size(), 1, CV_32S);
+            root->centers = Mat::zeros(k, des[0].cols, des[0].type());
+            
+            try {
+                cout << "Size of descriptors vector: " << des.size() << endl;
+                cout << "Size of labels vector before kmeans: " << root->labels.size() << endl;
+                cout << "Size of centers matrix before kmeans: " << root->centers.size() << endl;
+                // cout << "Criteria: " << criteria << endl;
+                kmeans(des, k, root->labels, criteria, attempts, KMEANS_PP_CENTERS, root->centers);
+            } catch (const cv::Exception& e) {
+                cerr << "Caught OpenCV exception in kmeans: " << e.what() << endl;
+                cerr << "Error occurred at k = " << k << ", L = " << L << endl;
+            }
+
+            // kmeans(des, k, root->labels, criteria, attempts, KMEANS_PP_CENTERS, root->centers);
 
             // If we reach the leaf node
             if (L == 0) {
@@ -455,8 +474,15 @@ public:
                         cluster_i.push_back(des_and_path[j]);
                     }
                 }
-                VocabNode* node_i = hierarchical_KMeans(k, L - 1, cluster_i);
-                root->children.push_back(node_i);
+                try {
+                    VocabNode* node_i = hierarchical_KMeans(k, L - 1, cluster_i);
+                    root->children.push_back(node_i);
+                } catch (const cv::Exception& e) {
+                    std::cerr << "Caught OpenCV exception in hierarchical_KMeans: " << e.what() << std::endl;
+                    std::cerr << "Error occurred at k = " << k << ", L = " << L << std::endl;
+                }
+                // VocabNode* node_i = hierarchical_KMeans(k, L - 1, cluster_i);
+                // root->children.push_back(node_i);
             }
             return root;
         }
@@ -677,7 +703,13 @@ public:
             loadImgs(load_path, method);
 
             cout << "Building Vocabulary Tree, with " << k << " clusters, " << L << " levels\n";
-            run_KMeans(k, L);
+
+            try {
+                run_KMeans(k, L);
+            } catch (const cv::Exception& e) {
+                cerr << "Caught OpenCV exception: " << e.what() << endl;
+                cerr << "Error occurred at k = " << k << ", L = " << L << endl;
+            }
 
             cout << "Building Histogram for each images\n";
             build_histogram(vocabulary_tree);

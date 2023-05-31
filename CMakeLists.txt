@@ -6,10 +6,13 @@ project(VocabTree)
 
 set(SOURCE ./main.cpp)
 
-INCLUDE_DIRECTORIES(/usr/local/include/opencv4)
+# Find OpenCV
+find_package(OpenCV REQUIRED)
 
-LINK_DIRECTORIES(/usr/local/lib)
+# Include OpenCV directories
+include_directories(${OpenCV_INCLUDE_DIRS})
 
 add_executable(${PROJECT_NAME} ${SOURCE})
 
-TARGET_LINK_LIBRARIES(${PROJECT_NAME} libopencv_core.dylib libopencv_highgui.dylib libopencv_imgcodecs.dylib libopencv_imgproc.dylib libopencv_features2d.dylib libopencv_xfeatures2d.dylib)
+# Link against OpenCV libraries
+target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})

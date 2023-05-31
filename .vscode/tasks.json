@@ -10,6 +10,7 @@
              "-G",
              "\"Unix Makefiles\"",
              "-DCMAKE_BUILD_TYPE=Debug",
+             "-DOpenCV_DIR=/usr/local/lib/cmake/opencv4",
              ".."
           ],
           "options": {

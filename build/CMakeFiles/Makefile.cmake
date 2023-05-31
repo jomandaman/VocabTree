@@ -20,6 +20,8 @@ set(CMAKE_MAKEFILE_DEPENDS
   "/Applications/CMake.app/Contents/share/cmake-3.26/Modules/Compiler/CMakeCommonCompilerMacros.cmake"
   "/Applications/CMake.app/Contents/share/cmake-3.26/Modules/Compiler/Clang.cmake"
   "/Applications/CMake.app/Contents/share/cmake-3.26/Modules/Compiler/GNU.cmake"
+  "/Applications/CMake.app/Contents/share/cmake-3.26/Modules/FindPackageHandleStandardArgs.cmake"
+  "/Applications/CMake.app/Contents/share/cmake-3.26/Modules/FindPackageMessage.cmake"
   "/Applications/CMake.app/Contents/share/cmake-3.26/Modules/Platform/Apple-AppleClang-C.cmake"
   "/Applications/CMake.app/Contents/share/cmake-3.26/Modules/Platform/Apple-AppleClang-CXX.cmake"
   "/Applications/CMake.app/Contents/share/cmake-3.26/Modules/Platform/Apple-Clang-C.cmake"
@@ -32,6 +34,10 @@ set(CMAKE_MAKEFILE_DEPENDS
   "CMakeFiles/3.26.1/CMakeCCompiler.cmake"
   "CMakeFiles/3.26.1/CMakeCXXCompiler.cmake"
   "CMakeFiles/3.26.1/CMakeSystem.cmake"
+  "/usr/local/lib/cmake/opencv4/OpenCVConfig-version.cmake"
+  "/usr/local/lib/cmake/opencv4/OpenCVConfig.cmake"
+  "/usr/local/lib/cmake/opencv4/OpenCVModules-release.cmake"
+  "/usr/local/lib/cmake/opencv4/OpenCVModules.cmake"
   )
 
 # The corresponding makefile is:

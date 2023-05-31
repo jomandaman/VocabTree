@@ -1,0 +1,11 @@
+{
+    "name": "C++ Launch",
+    "type": "cppdbg",
+    "request": "launch",
+    "program": "${workspaceFolder}/build/VocabTree",
+    "args": [],
+    "environment": [{ "name": "config", "value": "Debug" }],
+    "cwd": "${workspaceFolder}",
+    "preLaunchTask": "make"
+  }
+  
