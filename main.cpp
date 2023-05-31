@@ -476,19 +476,19 @@ public:
             for (int i = 0; i < k; i++) {
                 vector<pair<Mat, string>> cluster_i;
                 for (int j = 0; j < des_and_path.size(); j++) {
-                    if (root->labels.at<int>(j) == i) {
+                    if (root->labels.total() > 0 && root->labels.at<int>(j) == i) {
                         cluster_i.push_back(des_and_path[j]);
                     }
                 }
-                try {
+                if (!cluster_i.empty() && root->labels.total() > 0) {
+                    try {
                     VocabNode* node_i = hierarchical_KMeans(k, L - 1, cluster_i);
                     root->children.push_back(node_i);
-                } catch (const cv::Exception& e) {
-                    std::cerr << "Caught OpenCV exception in hierarchical_KMeans: " << e.what() << std::endl;
-                    std::cerr << "Error occurred at k = " << k << ", L = " << L << std::endl;
+                    } catch (const cv::Exception& e) {
+                        std::cerr << "Caught OpenCV exception in hierarchical_KMeans: " << e.what() << std::endl;
+                        std::cerr << "Error occurred at k = " << k << ", L = " << L << std::endl;
+                    }
                 }
-                // VocabNode* node_i = hierarchical_KMeans(k, L - 1, cluster_i);
-                // root->children.push_back(node_i);
             }
             return root;
         }
@@ -617,6 +617,7 @@ public:
             // get a list of img from database that have the same visual words
             vector<string> target_img_lst;
             for (auto n : node_lst) {
+                 if (n == nullptr) continue; // Skip virtual nodes
                 for (auto const& [img, count] : n->occurrences_in_img) {
                     if (find(target_img_lst.begin(), target_img_lst.end(), img) == target_img_lst.end()) {
                         target_img_lst.push_back(img);
@@ -731,20 +732,21 @@ public:
         string test_path = "./data/test";
         string cover_path = "./data/DVDcovers";
 
-        // Initial and build the database
+        // // Initial and build the database
         Database db;
 
-        // Build database
+        // // Build database
         cout << "Building the database...\n";
         db.buildDatabase(cover_path, 5, 5, "SIFT", "data_sift.txt");
 
         // Load the database
         cout << "Loading the database...\n";
         db.load("data_sift.txt");
+        cout << "Database loaded\n";
 
         // Query an image
+        cout << "Querying an image\n";
         string img_path = test_path + "/iRobot.jpg";
-         
         Mat test = imread(img_path);
         Mat best_img;
         string best_img_path;
