@@ -264,6 +264,7 @@ private:
     map<string, vector<float>> img_to_histogram;  // Maps each image to a histogram
     vector<pair<Mat, string>> all_des;  // Descriptor matrices
     vector<string> all_images;  // Image paths
+    map<string, Mat> frames; // Frames from video
     vector<int> num_feature_per_image;
     vector<int> feature_start_idx;
     VocabNode* vocabulary_tree;
@@ -298,6 +299,7 @@ public:
                     while (cap.read(frame)) {
                         // Process frames
                         string frame_path = img_path + "_frame_" + to_string(frameNumber);
+                        frames[frame_path] = frame.clone();
                         processImg(frame, frame_path, fd, method);
                         frameNumber++;
                     }
@@ -475,7 +477,16 @@ public:
         Mat best_img, best_H;
 
         for (const string& img_path : img_path_list) {
-            Mat img = imread(img_path);
+            Mat img;
+            // Check if the best match is a frame from a video
+            if (img_path.find("_frame_") != string::npos) {
+                // The best match is a frame from a video, retrieve it from the frames map
+                img = frames[img_path];
+            } else {
+                // The best match is not a frame from a video, load the image from the path
+                img = imread(img_path);
+            }
+             
             auto correspondences = fd.detectAndMatch(img, query, method);
             
             int inliers;
@@ -702,7 +713,7 @@ int main(int argc, char* argv[]) {
     cout << "best_img_path = " << best_img_path << endl;
     
     // Assuming best_img is the best matching image
-    Mat top_choice = imread(best_img_path, IMREAD_COLOR);
+    // Mat top_choice = imread(best_img_path, IMREAD_COLOR);
 
     // Display the test image
     namedWindow("Test Image", WINDOW_NORMAL); 
@@ -711,7 +722,7 @@ int main(int argc, char* argv[]) {
     try {
         // Display the best matching image
         namedWindow("Best Match", WINDOW_NORMAL);
-        imshow("Best Match", top_choice);
+        imshow("Best Match", best_img);
     } catch (const cv::Exception& e) {
         cerr << "Caught OpenCV exception: " << e.what() << endl;
     }
