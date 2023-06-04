@@ -288,45 +288,59 @@ public:
                 string img_path = p.path().string();
                 string extension = p.path().extension().string();
                 transform(extension.begin(), extension.end(), extension.begin(), ::tolower); // Convert the extension to lower case
-
-                // Check if the file has an image extension
-                if (extension == ".jpg" || extension == ".jpeg" || extension == ".png" || extension == ".bmp") {
-                    // Load the image
-                    Mat img = imread(img_path);
-
-                    // get all the keypoints and descriptors for each image
-                    vector<KeyPoint> kpts;
-                    Mat des;
-                    tie(kpts, des) = fd.detect(img, method);
-
-                    // Append descriptors and image paths to all_des
-                    for (int i = 0; i < des.rows; i++) {
-                        Mat row = des.row(i);
-                        all_des.push_back(make_pair(row, img_path));
+                if (extension == ".avi" || extension == ".mp4" || extension == ".mkv" || extension == ".flv"
+                        || extension == ".mov" || extension == ".wmv") {
+                    // File is a video
+                    cout << "Found video: " << img_path << ". Processing frames..." << endl;
+                    VideoCapture cap(img_path);
+                    Mat frame;
+                    int frameNumber = 0;
+                    while (cap.read(frame)) {
+                        // Process frames
+                        string frame_path = img_path + "_frame_" + to_string(frameNumber);
+                        processImg(frame, frame_path, fd, method);
+                        frameNumber++;
                     }
-
-                    // Append image paths to all_image
-                    all_images.push_back(img_path);
-
-                    // Compute start index
-                    int idx = 0;
-                    if (!num_feature_per_image.empty())
-                        idx = num_feature_per_image.back() + feature_start_idx.back();
-
-                    // Append descriptor count to num_feature_per_image
-                    num_feature_per_image.push_back(des.rows);
-
-                    // Append start index to feature_start_idx
-                    feature_start_idx.push_back(idx);
-
-                } else { // Not an image file. Skip it.
-                    continue;
+                } else {
+                    // File is not a video. Check if the file has an image extension
+                    if (extension == ".jpg" || extension == ".jpeg" || extension == ".png" || extension == ".bmp") {
+                        // Load the image
+                        Mat img = imread(img_path);
+                        processImg(img, img_path, fd, method);
+                    } 
                 }
             }
         }
 
         num_imgs = (int)all_images.size();
         cout << "No. of images: " << num_imgs << endl;
+    }
+
+    void processImg(Mat img, string img_path, FeatureDetector1 fd, string method = "ORB") {
+        // get all the keypoints and descriptors for each image
+        vector<KeyPoint> kpts;
+        Mat des;
+        tie(kpts, des) = fd.detect(img, method);
+
+        // Append descriptors and image paths to all_des
+        for (int i = 0; i < des.rows; i++) {
+            Mat row = des.row(i);
+            all_des.push_back(make_pair(row, img_path));
+        }
+
+        // Append image paths to all_image
+        all_images.push_back(img_path);
+
+        // Compute start index
+        int idx = 0;
+        if (!num_feature_per_image.empty())
+            idx = num_feature_per_image.back() + feature_start_idx.back();
+
+        // Append descriptor count to num_feature_per_image
+        num_feature_per_image.push_back(des.rows);
+
+        // Append start index to feature_start_idx
+        feature_start_idx.push_back(idx);
     }
 
 
@@ -619,11 +633,13 @@ public:
         file.read((char*)&word_idx_count, sizeof(word_idx_count));
         file.read((char*)&vocabulary_tree, sizeof(vocabulary_tree));
 
+        // perhaps use this function to load a database by creating a new one from data_path
+
         file.close();
     }
 
     void buildDatabase(string load_path, int k, int L, string method, string save_path) {
-        cout << "Loading the images from " << load_path << ", use " << method << " for features\n";
+        cout << "Loading media from " << load_path << ", use " << method << " for features\n";
         loadImgs(load_path, method);
 
         cout << "Building Vocabulary Tree, with " << k << " clusters, " << L << " levels\n";
@@ -649,8 +665,8 @@ public:
 
 int main(int argc, char* argv[]) {
     //Define the test path and DVD cover path
-    string test_path = "./data/DVD-DB-50";
-    string query_img = "./data/DVD-Query-50-1/16.jpg";
+    string test_path = "./data/Cessna";
+    string query_img = "./data/test/cessna.jpg";
 
     // // Initial and build the database
     Database db;
@@ -679,7 +695,7 @@ int main(int argc, char* argv[]) {
     Mat best_H;
     vector<cv::String> best_K;
     start = time(NULL);
-    tie(best_img, best_img_path, best_H, best_K) = db.query(test, 1, "SIFT");
+    tie(best_img, best_img_path, best_H, best_K) = db.query(test, 5, "SIFT");
     end = time(NULL);
     cout << "Time taken: " << difftime(end, start) << " sec" << endl;
 
@@ -689,7 +705,7 @@ int main(int argc, char* argv[]) {
     Mat top_choice = imread(best_img_path, IMREAD_COLOR);
 
     // Display the test image
-    namedWindow("Test Image", WINDOW_NORMAL);
+    namedWindow("Test Image", WINDOW_NORMAL); 
     imshow("Test Image", test);
     
     try {
