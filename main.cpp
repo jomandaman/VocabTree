@@ -100,6 +100,22 @@ static void read(const FileNode& node, VocabNode& x, const VocabNode& default_va
         x.read(node);
 }
 
+static void write(FileStorage& fs, const string&, const pair<Mat, string>& x) {
+    fs << "{";
+    fs << "Mat" << x.first;
+    fs << "String" << x.second;
+    fs << "}";
+}
+
+static void read(const FileNode& node, pair<Mat, string>& x, const pair<Mat, string>& default_value = pair<Mat, string>()) {
+    if(node.empty())
+        x = default_value;
+    else {
+        node["Mat"] >> x.first;
+        node["String"] >> x.second;
+    }
+}
+
 //--------------------------------------------------------Feature Detector Class-----------------------------------------------------------------------------
 class FeatureDetector1 {
 private:
@@ -934,7 +950,7 @@ public:
         // For std::map objects
         FileNode word_to_img_node = fs["word_to_img"];
         for (FileNodeIterator it = word_to_img_node.begin(); it != word_to_img_node.end(); ++it) {
-            string key;
+            int key;
             vector<string> value;
             it >> key >> value;
             word_to_img[key] = value;
