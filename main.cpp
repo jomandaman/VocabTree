@@ -877,32 +877,88 @@ public:
     //--------------------------------------------------------------Saving the Database----------------------------------------------------------------------
     void save(const string& db_name) {
         FileStorage fs(db_name, FileStorage::WRITE);
-        fs << "Vocab Tree" << vocabulary_tree;
+
+        fs << "data_path" << data_path;
+        fs << "num_imgs" << num_imgs;
+        fs << "word_count" << word_count;
+        fs << "word_idx_count" << word_idx_count;
+
+        // For cv::Mat objects
+        fs << "all_des" << all_des;
+
+        // For std::vector objects
+        fs << "num_feature_per_image" << num_feature_per_image;
+        fs << "feature_start_idx" << feature_start_idx;
+
+        // For std::map objects
+        fs << "word_to_img" << "{";
+        for (const auto& pair : word_to_img) {
+            fs << pair.first << pair.second;
+        }
+        fs << "}";
+
+        fs << "BoW" << "{";
+        for (const auto& pair : BoW) {
+            fs << pair.first << pair.second;
+        }
+        fs << "}";
+
+        fs << "img_to_histogram" << "{";
+        for (const auto& pair : img_to_histogram) {
+            fs << pair.first << pair.second;
+        }
+        fs << "}";
+
+        // For user-defined types
+        fs << "Vocab Tree" << *vocabulary_tree;
+
         fs.release();
     }
 
     //--------------------------------------------------------------Loading the Database---------------------------------------------------------------------
     void load(const string& db_name) {
-        /*ifstream file(db_name, ios::binary);
-
-        file.read((char*)&data_path, sizeof(data_path));
-        file.read((char*)&num_imgs, sizeof(num_imgs));
-        file.read((char*)&word_to_img, sizeof(word_to_img));
-        file.read((char*)&BoW, sizeof(BoW));
-        file.read((char*)&word_count, sizeof(word_count));
-        file.read((char*)&img_to_histogram, sizeof(img_to_histogram));
-        file.read((char*)&all_des, sizeof(all_des));
-        file.read((char*)&all_images, sizeof(all_images));
-        file.read((char*)&num_feature_per_image, sizeof(num_feature_per_image));
-        file.read((char*)&feature_start_idx, sizeof(feature_start_idx));
-        file.read((char*)&word_idx_count, sizeof(word_idx_count));
-        file.read((char*)&vocabulary_tree, sizeof(vocabulary_tree));
-
-        file.close();*/
-
         FileStorage fs(db_name, FileStorage::READ);
-        FileNode fn = fs["Vocab Tree"];
-        fn >> vocabulary_tree;
+
+        fs["data_path"] >> data_path;
+        fs["num_imgs"] >> num_imgs;
+        fs["word_count"] >> word_count;
+        fs["word_idx_count"] >> word_idx_count;
+
+        // For cv::Mat objects
+        fs["all_des"] >> all_des;
+
+        // For std::vector objects
+        fs["num_feature_per_image"] >> num_feature_per_image;
+        fs["feature_start_idx"] >> feature_start_idx;
+
+        // For std::map objects
+        FileNode word_to_img_node = fs["word_to_img"];
+        for (FileNodeIterator it = word_to_img_node.begin(); it != word_to_img_node.end(); ++it) {
+            string key;
+            vector<string> value;
+            it >> key >> value;
+            word_to_img[key] = value;
+        }
+
+        FileNode BoW_node = fs["BoW"];
+        for (FileNodeIterator it = BoW_node.begin(); it != BoW_node.end(); ++it) {
+            string key;
+            vector<float> value;
+            it >> key >> value;
+            BoW[key] = value;
+        }
+
+        FileNode img_to_histogram_node = fs["img_to_histogram"];
+        for (FileNodeIterator it = img_to_histogram_node.begin(); it != img_to_histogram_node.end(); ++it) {
+            string key;
+            vector<float> value;
+            it >> key >> value;
+            img_to_histogram[key] = value;
+        }
+
+        // For user-defined types
+        fs["Vocab Tree"] >> *vocabulary_tree;
+
         fs.release();
     }
 
