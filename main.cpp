@@ -3,8 +3,14 @@
 //  Enhanced Vocabulary Trees for Real-Time Object Recognition in Image and Video Streams
 //  Team members:  Arsheya Raj, Sugam Jaiswal, Josiah Zacharias
 //
-//  This project is inspired on the research paper which has the topic as "Scalable Recognition with a Vocabulary Tree".
-//  Paper Link: https://ieeexplore-ieee-org.offcampus.lib.washington.edu/document/1641018
+//  This project is inspired on the research paper which has the topic as "Scalable Recognition with a Vocabulary Tree". The goal of the project is to
+//  find the best match for the query image from a dataset with images in the range of thousands. The project aims to develop a system that can
+//  efficiently and accurately retrieve an image from a large collection of images based on a given query image. The system should be able to
+//  compare the query image with thousands of images in the dataset and return the one that is most similar to it in terms of visual features,
+//  such as color, shape, texture, or content. The project will explore various methods and techniques for image representation, score calculation and 
+//  image indexing.
+// 
+//   Paper Link: https://ieeexplore-ieee-org.offcampus.lib.washington.edu/document/1641018
 //
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -30,7 +36,7 @@
 
 using namespace std;
 using namespace cv;
-//mespace fs = __fs::filesystem; // for MacOS
+//namespace fs = __fs::filesystem; // for MacOS
 namespace fs = std::experimental::filesystem; // for Windows
 using namespace fs;
 
@@ -230,9 +236,9 @@ public:
             extractor->compute(img1, kp1, des1);
         }
         else if (method == "ORB") {
-            orb->detect(img1, kp1);
-            Ptr<DescriptorExtractor> extractor = ORB::create();
-            extractor->compute(img1, kp1, des1);
+          orb->detect(img1, kp1);
+          Ptr<DescriptorExtractor> extractor = ORB::create();
+          extractor->compute(img1, kp1, des1);
         }
         else if (method == "BRISK") {
             brisk->detect(img1, kp1);
@@ -474,7 +480,7 @@ tuple<int, Mat> RANSAC_find_optimal_Homography(vector<pair<Mat, Mat>> correspond
 * Assumptions: The best match for the query image is already found
 * @return: the visualized matrix result
 */
-Mat visualize_homography1(Mat img1, Mat img2, Mat H) {
+Mat visualize_homography(Mat img1, Mat img2, Mat H) {
     int h, w;
     h = img1.rows;
     w = img1.cols;
@@ -497,55 +503,6 @@ Mat visualize_homography1(Mat img1, Mat img2, Mat H) {
 
     return result;
 }
-
-
-void visualize_homography2(Mat& img1, Mat& img2, Mat& H, vector<pair<Mat, Mat>>& correspondences) {
-    // Create a new image that can contain both images side by side
-    int max_height = max(img1.rows, img2.rows);
-    int total_width = img1.cols + img2.cols;
-    Mat result(max_height, total_width, img1.type(), Scalar(0, 0, 0));
-
-    // Copy img1 and img2 into result
-    Mat roi1(result, Rect(0, 0, img1.cols, img1.rows));
-    img1.copyTo(roi1);
-    Mat roi2(result, Rect(img1.cols, 0, img2.cols, img2.rows));
-    img2.copyTo(roi2);
-
-    // Convert the homography matrix to float
-    Mat H_float;
-    H.convertTo(H_float, CV_32F);
-
-    // Apply the homography to the corners of the first image
-    vector<Point2f> corners1(4);
-    corners1[0] = Point2f(0, 0);
-    corners1[1] = Point2f(img1.cols, 0);
-    corners1[2] = Point2f(img1.cols, img1.rows);
-    corners1[3] = Point2f(0, img1.rows);
-    vector<Point2f> corners2(4);
-    perspectiveTransform(corners1, corners2, H_float);
-
-    // Offset the points in the second image by the width of the first image
-    for (Point2f& pt : corners2) {
-        pt.x += img1.cols;
-    }
-
-    // Draw the transformed corners as a quadrilateral
-    vector<Point> corners2_int(corners2.begin(), corners2.end());
-    polylines(result, corners2_int, true, Scalar(0, 0, 255), 2, LINE_AA);
-
-    // Draw lines between the corresponding points
-    for (const auto& correspondence : correspondences) {
-        Point2f pt1(correspondence.first.at<double>(0, 0), correspondence.first.at<double>(0, 1));
-        Point2f pt2(correspondence.second.at<double>(0, 0), correspondence.second.at<double>(0, 1));
-        line(result, pt1, Point(pt2.x + img1.cols, pt2.y), Scalar(0, 255, 0), 1);
-    }
-
-    // Display the visualization
-    namedWindow("Homography", WINDOW_NORMAL);
-    imshow("Homography", result);
-    waitKey(0);
-}
- 
 
  //--------------------------------------------------------------Database Class-------------------------------------------------------------------------------
   // class to group all the attrbitutes of the database construction
@@ -739,50 +696,6 @@ public:
                 }
 
             }
-            else {
-                // Work in Progress
-                // Adjust the number of clusters or skip the kmeans() call. // WORK ON THIS
-                //cout<< "The number of descriptors is less than K. Choose a lower value for K in K-means" << endl;
-                /*
-                int rows = k - descriptors.rows;
-                kmeans(descriptors, descriptors.rows, labels, criteria, attempts, KMEANS_PP_CENTERS, centers);
-                for (int i = 0; i < rows; i++) {
-                    root->labels = labels;
-                    root->centers = centers;
-                }
-                // If we are not on the leaf level, then for each cluster,
-                // we recursively run KMeans
-                for (int i = 0; i < k; i++) {
-                    vector<pair<Mat, string>> cluster_i;
-                    //CHANGE CODE
-                    // vector<ImagePathPair> cluster_i;
-                    for (int j = 0; j < des_and_path.size(); j++) {
-                        if (root->labels.total() > 0 && root->labels.at<int>(j) == i) {
-                            des_and_path[j].first.convertTo(des_and_path[j].first, CV_32F);
-                            cluster_i.push_back(des_and_path[j]);
-                        }
-                    }
-                    if (!cluster_i.empty() && root->labels.total() > 0) {
-                        try {
-                            VocabNode* node_i = hierarchical_KMeans(k, L - 1, cluster_i);
-                            root->children.push_back(node_i);
-                        } catch (const cv::Exception& e) {
-                            cerr << "Caught OpenCV exception in hierarchical_KMeans: " << e.what() << endl;
-                            cerr << "Error occurred at k = " << k << ", L = " << L << endl;
-                        }
-                    }
-                    else{
-                        try {
-                            VocabNode* node_i = hierarchical_KMeans(k, L - 1, cluster_i);
-                            root->children.push_back(node_i);
-                        } catch (const cv::Exception& e) {
-                            cerr << "Caught OpenCV exception in hierarchical_KMeans: " << e.what() << endl;
-                            cerr << "Error occurred at k = " << k << ", L = " << L << endl;
-                        }
-                    }
-                }
-                */
-            }
         }
         catch (const cv::Exception& e) {
             cerr << "Caught OpenCV exception in kmeans: " << e.what() << endl;
@@ -870,8 +783,6 @@ public:
             cout << "Running RANSAC... Image: " << img_path << " Inliers: " << inliers << endl;
 
             fileinlier.push_back(make_pair(img_path, inliers));
-
-
         }
         return fileinlier;
     }
@@ -924,16 +835,14 @@ public:
         cout << "word_idx_count = " << word_idx_count << endl;
         vector<float> q(word_idx_count, 0.0);
         vector<VocabNode*> node_lst;
-
         // Assuming des is a Mat with a row for each descriptor
         for (int i = 0; i < des.rows; i++) {
-            Mat row = des.row(i);
-            vector<float> descriptor(row.begin<float>(), row.end<float>());
+            vector<float>descriptor;
+            des.row(i).copyTo(descriptor);
             VocabNode* node = get_leaf_nodes(vocabulary_tree, descriptor);
             node_lst.push_back(node);
             q[node->index] += 1;
         }
-
         for (int w = 0; w < word_idx_count; ++w) {
             float n_w = word_count[w];
             float N = all_images.size();
@@ -941,7 +850,6 @@ public:
             float n_q = accumulate(begin(q), end(q), 0.0f);
             q[w] = (n_wq / n_q) * log(N / n_w);
         }
-
         // get a list of img from database that have the same visual words
         vector<string> target_img_lst;
         for (auto n : node_lst) {
@@ -1026,9 +934,7 @@ public:
             best_img_path.push_back(Final_score_lst[i].second);
         }
         fd.drawCircle(input_img, kpts);
-        visualize_homography1(input_img, best_img);
-       
-        visualize_homography2(input_img, best_img, best_correspondences);
+        //visualize_homography(input_img, best_img, best_H);
 
         return make_tuple(best_img_path, best_K_match_imgs);
     }
@@ -1179,13 +1085,13 @@ int main(int argc, char* argv[]) {
     string cover_path = "./data/video-frames";
 
     string fdname;
-    int fdnumber=1;
-    // cout << "Enter the feature detector number from the following: " << endl;
-    // cout << "1 - SIFT (Recommended)" << endl;
-    // cout << "2 - ORB" << endl;
-    // cout << "3 - BRISK" << endl;
-    // cout << "4 - AKAZE" << endl;
-    // cin >> fdnumber;
+    int fdnumber;
+    cout << "Enter the feature detector number from the following: " << endl;
+    cout << "1 - SIFT (Recommended)" << endl;
+    cout << "2 - ORB" << endl;
+    cout << "3 - BRISK" << endl;
+    cout << "4 - AKAZE" << endl;
+    cin >> fdnumber;
     if (fdnumber == 1) {
         fdname = "SIFT";
     }
@@ -1209,27 +1115,24 @@ int main(int argc, char* argv[]) {
     recursive_directory_iterator dir_iter(cover_path);
 
     // Loop over the directory entries
-    // for (const auto& entry : dir_iter)
-    // {
-    //     // Check if the entry is a directory
-    //     if (is_directory(entry))
-    //     {
-    //         // Increment the folder count
-    //         folder_count++;
-    //     }
-    // }
+    for (const auto& entry : dir_iter)
+    {
+        // Check if the entry is a directory
+        if (is_directory(entry))
+        {
+            // Increment the folder count
+            folder_count++;
+        }
+    }
 
-    // // Print the number of folders
-    // cout << "There are " << folder_count << " folders in " << cover_path << endl;
+    // Print the number of folders
+    cout << "There are " << folder_count << " folders in " << cover_path << endl;
 
     string img_path = test_path + "/phonebooth.jpg";
 
     Mat test = imread(img_path);
     vector<string> best_img_path;
     vector<cv::String> best_K;
-
-    //if(folder_count == 0){
-        // Initial and build the database
     Database db;
     
     // Build database
@@ -1269,7 +1172,7 @@ int main(int argc, char* argv[]) {
     cout << "Querying the image...\n";
     std::chrono::time_point<std::chrono::high_resolution_clock> startquery, endquery;
     startquery = std::chrono::high_resolution_clock::now();
-    tie(best_img_path, best_K) = db.query(test, 3, fdname);
+    tie(best_img_path, best_K) = db.query(test, 2, fdname);
     endquery = std::chrono::high_resolution_clock::now();
     std::chrono::duration< double > Time_for_querying = endquery - startquery;
     cout << "Querying the image done!\n";
@@ -1279,66 +1182,6 @@ int main(int argc, char* argv[]) {
     for (int i = 0; i < best_img_path.size(); i++) {
         cout << "i=" << i << "best_img_path = " << best_img_path[i] << endl;
     }
-    //}
-    /*
-    else{
-        for(int i=0;i<folder_count;i++){
-            string index = to_string(i+1);
-            string folder_cover_path = cover_path + "/p" + index;
-            cout << "\nFolder path=" << folder_cover_path << endl;
-            // Initial and build the database
-            Database db;
-
-            // Build database
-            cout << "Building the database...\n";
-            std::chrono::time_point<std::chrono::high_resolution_clock> startdbbuild, enddbbuild;
-            startdbbuild = std::chrono::high_resolution_clock::now();
-            db.buildDatabase(folder_cover_path, 3, 5, fdname);
-            enddbbuild = std::chrono::high_resolution_clock::now();
-            std::chrono::duration< double > Time_for_db_build = enddbbuild - startdbbuild;
-            cout << "Database Built\n";
-            cout << "Time taken to build the database: " << Time_for_db_build.count() << " sec" << endl;
-
-            // Save the database
-            cout << "Saving the database...\n";
-            std::chrono::time_point<std::chrono::high_resolution_clock> startdbsave, enddbsave;
-            startdbsave = std::chrono::high_resolution_clock::now();
-            db.save("./Database_" + folder_cover_path + ".txt");
-            enddbsave = std::chrono::high_resolution_clock::now();
-            std::chrono::duration< double > Time_for_db_save = enddbsave - startdbsave;
-            cout << "Database saved\n";
-            cout << "Time taken to save the database: " << Time_for_db_save.count() << " sec" << endl;
-
-            //Uncomment the load function call when you want to load an already existing database
-            /*
-             // Load the database
-             cout << "Loading the database...\n";
-             std::chrono::time_point<std::chrono::high_resolution_clock> startdbload, enddbload;
-             startdbload = std::chrono::high_resolution_clock::now();
-             db.load("Database_" + cover_path + ".txt");
-             enddbload = std::chrono::high_resolution_clock::now();
-             std::chrono::duration< double > Time_for_db_load = enddbload - startdbload;
-             cout << "Database loaded\n";
-             cout << "Time taken to load the database: " << Time_for_db_load.count() << " sec" << endl;
-             *
-
-            // Query an image
-            cout << "Querying the image...\n";
-
-            std::chrono::time_point<std::chrono::high_resolution_clock> startquery, endquery;
-            startquery = std::chrono::high_resolution_clock::now();
-            tie(best_img_path, best_K) = db.query(test, 5, fdname);
-            endquery = std::chrono::high_resolution_clock::now();
-            std::chrono::duration< double > Time_for_querying = endquery - startquery;
-            cout << "Querying the image done!\n";
-            cout << "Time taken for querying: " << Time_for_querying.count() << " sec" << endl;
-
-            cout << "best_img_path = " << best_img_path[0] << endl;
-            for(int i=0;i<best_img_path.size();i++){
-                cout << "i=" << i << "best_img_path = " << best_img_path[i] << endl;
-            }
-        }
-    }*/
 
     // Display the test image
     namedWindow("Test Image", WINDOW_NORMAL);
